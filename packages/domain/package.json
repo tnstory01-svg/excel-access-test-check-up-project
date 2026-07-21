@@ -1,0 +1,18 @@
+{
+  "name": "@excel-access-grader/domain",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./scoring": "./src/scoring.ts",
+    "./results": "./src/results.ts",
+    "./draft": "./src/draft.ts",
+    "./errors": "./src/errors.ts",
+    "./ipc": "./src/ipc.ts",
+    "./capabilities": "./src/capabilities.ts"
+  },
+  "scripts": {
+    "typecheck": "node --experimental-strip-types --input-type=module -e \"await Promise.all(['./src/errors.ts','./src/scoring.ts','./src/results.ts','./src/draft.ts','./src/ipc.ts','./src/capabilities.ts'].map((path) => import(path)))\"",
+    "test:unit": "node --experimental-strip-types --input-type=module -e \"import { addScorePoints, percentHalfUp } from './src/scoring.ts'; import { assertGradeSummaryWire } from './src/results.ts'; const vectors = [[0, 1, 0], [1, 6, 16.67], [1, 8, 12.5], [1, 200, 0.5], [199, 200, 99.5], [1, 3, 33.33], [2, 3, 66.67]]; for (const [earned, denominator, expected] of vectors) { if (percentHalfUp(earned, denominator) !== expected) throw new Error('percent vector'); } if (percentHalfUp(0, 0) !== null) throw new Error('zero denominator'); let rejected = false; try { percentHalfUp(2, 1); } catch { rejected = true; } if (!rejected) throw new Error('score invariant'); if (addScorePoints(Number.MAX_SAFE_INTEGER + 1, 0).code !== 'SCORE_INVARIANT_ERROR' || addScorePoints(-1, 0).code !== 'SCORE_INVARIANT_ERROR') throw new Error('unsafe score'); if (addScorePoints(Number.MAX_SAFE_INTEGER, 1).code !== 'SCORE_OVERFLOW') throw new Error('overflow'); const summary = { declaredMax: 3, selectedDeclaredMax: 3, outOfScopePoints: 0, verifiedEarned: 2, failedPoints: 1, indeterminatePoints: 0, finalScorePoints: 2, finalPercent: 66.67, executionScope: 'full', adjudication: 'final', representsWholeRuleSet: true }; assertGradeSummaryWire(summary); rejected = false; try { assertGradeSummaryWire({ ...summary, finalPercent: 66.66 }); } catch { rejected = true; } if (!rejected) throw new Error('result invariant'); await import('./src/ipc.test.ts');\""
+  }
+}

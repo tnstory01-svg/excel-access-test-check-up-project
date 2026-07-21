@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.14.0
+          architecture: x64
+          cache: pnpm
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Verify dependency pins
+        run: node scripts/verify-dependencies.mjs
+      - name: Verify blocked fixture probes
+        run: node scripts/verify-fixtures.mjs
+      - name: Verify source-only publication allowlist
+        run: node scripts/verify-source-allowlist.mjs
+      - name: Run available workspace gates
+        shell: pwsh
+        env:
+          GATES: lint,typecheck,test:unit,test:integration,test:security,test:e2e,build
+        run: |
+          $manifests = @()
+          foreach ($directory in @('apps', 'packages', 'tools')) {
+            if (Test-Path $directory) {
+              $manifests += Get-ChildItem -Path $directory -Recurse -Filter package.json -File
+            }
+          }
+          foreach ($gate in $env:GATES.Split(',')) {
+            $available = $false
+            foreach ($manifest in $manifests) {
+              $package = Get-Content -Raw $manifest | ConvertFrom-Json
+              if ($null -ne $package.scripts -and $package.scripts.PSObject.Properties.Name -contains $gate) {
+                $available = $true
+                break
+              }
+            }
+            if ($available) {
+              pnpm $gate
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            } else {
+              Write-Host "Skipping unavailable workspace gate: $gate"
+            }
+          }

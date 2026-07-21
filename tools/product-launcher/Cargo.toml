@@ -1,0 +1,9 @@
+[package]
+name = "product-launcher"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.88"
+description = "Windows launcher for the bundled localhost application"
+publish = false
+
+[dependencies]

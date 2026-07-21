@@ -6,6 +6,14 @@ data/
 local-data/
 %LOCALAPPDATA%/
 ExcelAccessGrader/
+uploads/
+backups/
+tmp/
+temp/
+tokens/
+token/
+LocalAppData/
+**/AppData/Local/ExcelAccessGrader/
 *.db
 *.db3
 *.sqlite
@@ -54,7 +62,16 @@ bin/
 *.lib
 *.so
 *.dylib
+*.node
+*.dmp
 
+# Temporary validation bundles and workflow retention artifacts
+*.nupkg
+*.runtimeconfig.json
+*.deps.json
+ci-artifacts/
+workflow-artifacts/
+artifact-receipts/
 # Dependency/build caches (lockfiles remain tracked)
 node_modules/
 .next/
@@ -91,7 +108,6 @@ videos/
 *.mp4
 *.webm
 *.mov
-
 # Local VM artifacts
 vm/
 vms/
@@ -103,6 +119,10 @@ hyper-v/
 *.ovf
 *.iso
 
+*.qcow2
+*.vmcx
+*.vmrs
+*.avhdx
 # Tokens, credentials, and secrets
 .env
 .env.*
@@ -118,6 +138,10 @@ hyper-v/
 credentials*
 secrets*
 
+*.credentials
+*.password
+*.pass
+*.token
 # Logs and temporary files
 logs/
 *.log

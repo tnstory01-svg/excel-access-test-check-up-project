@@ -1,0 +1,11 @@
+{
+  "name": "@excel-access-grader/support-matrix",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "validate": "node validate.mjs",
+    "typecheck": "node validate.mjs",
+    "test:unit": "node validate.mjs"
+  }
+}

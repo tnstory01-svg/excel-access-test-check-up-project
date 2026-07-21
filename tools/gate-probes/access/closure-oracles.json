@@ -1,0 +1,25 @@
+{
+  "oracle": "Synthetic, independently declared Gate 0B policy cases; not parser or execution parity evidence.",
+  "capabilities": {
+    "access.query.definition.v1": "blocked: Jackcess catalog/parser fixture not established",
+    "access.query.result.v1": "blocked: UCanAccess parity fixture and execution evidence not established"
+  },
+  "cases": [
+    {"name":"local SELECT dependency graph","catalog":{"tables":[{"id":"Students"}],"queries":[{"id":"qBase","type":"SELECT","sql":"SELECT id FROM Students","dependencies":[{"kind":"table","id":"Students"}]},{"id":"qTop","type":"UNION","sql":"SELECT id FROM qBase UNION SELECT id FROM qBase","dependencies":[{"kind":"query","id":"qBase"}]}]},"queryId":"qTop","expected":{"state":"supported","reason":"STATIC_LOCAL_SELECT_UNION_CLOSURE"}},
+    {"name":"action query type","catalog":{"queries":[{"id":"q","type":"UPDATE","sql":"UPDATE T SET x=1"}]},"queryId":"q","expected":{"state":"unsupported","reason":"UNSUPPORTED_QUERY_TYPE"}},
+    {"name":"DDL SQL","catalog":{"queries":[{"id":"q","type":"SELECT","sql":"CREATE TABLE T (x INT)"}]},"queryId":"q","expected":{"state":"unsupported","reason":"UNSUPPORTED_QUERY_SHAPE"}},
+    {"name":"SELECT INTO","catalog":{"queries":[{"id":"q","type":"SELECT","sql":"SELECT x INTO NewTable FROM T"}]},"queryId":"q","expected":{"state":"unsupported","reason":"SELECT_INTO_QUERY"}},
+    {"name":"pass-through","catalog":{"queries":[{"id":"q","type":"SELECT","sql":"SELECT x FROM T","passThrough":true}]},"queryId":"q","expected":{"state":"unsupported","reason":"PASS_THROUGH_QUERY"}},
+    {"name":"parameter metadata","catalog":{"queries":[{"id":"q","type":"SELECT","sql":"SELECT x FROM T","parameters":true}]},"queryId":"q","expected":{"state":"unsupported","reason":"PARAMETER_QUERY"}},
+    {"name":"parameter SQL","catalog":{"queries":[{"id":"q","type":"SELECT","sql":"SELECT x FROM T WHERE x = ?"}]},"queryId":"q","expected":{"state":"unsupported","reason":"PARAMETER_QUERY"}},
+    {"name":"linked table","catalog":{"tables":[{"id":"RemoteT","linked":true}],"queries":[{"id":"q","type":"SELECT","sql":"SELECT x FROM RemoteT","dependencies":[{"kind":"table","id":"RemoteT"}]}]},"queryId":"q","expected":{"state":"unsupported","reason":"EXTERNAL_OR_LINKED_REFERENCE"}},
+    {"name":"unresolved dependency","catalog":{"queries":[{"id":"q","type":"SELECT","sql":"SELECT x FROM Missing","dependencies":[{"kind":"table","id":"Missing"}]}]},"queryId":"q","expected":{"state":"unsupported","reason":"UNRESOLVED_REFERENCE"}},
+    {"name":"UDF","catalog":{"queries":[{"id":"q","type":"SELECT","sql":"SELECT MyFunction(x) FROM T"}]},"queryId":"q","expected":{"state":"unsupported","reason":"UDF_OR_UNAPPROVED_FUNCTION"}},
+    {"name":"volatile function","catalog":{"queries":[{"id":"q","type":"SELECT","sql":"SELECT Now() FROM T"}]},"queryId":"q","expected":{"state":"unsupported","reason":"VOLATILE_FUNCTION"}},
+    {"name":"cycle","catalog":{"queries":[{"id":"a","type":"SELECT","sql":"SELECT x FROM b","dependencies":[{"kind":"query","id":"b"}]},{"id":"b","type":"SELECT","sql":"SELECT x FROM a","dependencies":[{"kind":"query","id":"a"}]}]},"queryId":"a","expected":{"state":"unsupported","reason":"DEPENDENCY_CYCLE"}},
+    {"name":"TRANSFORM","catalog":{"queries":[{"id":"q","type":"SELECT","sql":"TRANSFORM SUM(x) SELECT y FROM T"}]},"queryId":"q","expected":{"state":"unsupported","reason":"TRANSFORM_QUERY"}},
+    {"name":"null order key","catalog":{"queries":[{"id":"q","type":"SELECT","sql":"SELECT x FROM T"}]},"queryId":"q","options":{"queryResult":true,"orderBy":[{"name":"id","nullable":true,"unique":true}]},"expected":{"state":"unsupported","reason":"AMBIGUOUS_ORDER_KEY"}},
+    {"name":"duplicate order key","catalog":{"queries":[{"id":"q","type":"SELECT","sql":"SELECT x FROM T"}]},"queryId":"q","options":{"queryResult":true,"orderBy":[{"name":"id","nullable":false,"unique":true},{"name":"ID","nullable":false,"unique":true}]},"expected":{"state":"unsupported","reason":"AMBIGUOUS_ORDER_KEY"}},
+    {"name":"missing result order","catalog":{"queries":[{"id":"q","type":"SELECT","sql":"SELECT x FROM T"}]},"queryId":"q","options":{"queryResult":true},"expected":{"state":"unsupported","reason":"ORDER_REQUIRED"}}
+  ]
+}

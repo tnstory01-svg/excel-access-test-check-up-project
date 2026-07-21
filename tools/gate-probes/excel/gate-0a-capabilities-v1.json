@@ -1,0 +1,41 @@
+{
+  "gate": "0A",
+  "evidenceVersion": "v1",
+  "formats": ["xlsx", "xlsm", "xls"],
+  "capabilities": [
+    "excel.cell.value.v1",
+    "excel.cell.formula.stored.v1",
+    "excel.style.number-format.v1",
+    "excel.style.font.v1",
+    "excel.style.fill.v1",
+    "excel.style.border.v1",
+    "excel.style.alignment.v1"
+  ],
+  "requiredFixtureKinds": ["positive", "boundary", "negative"],
+  "status": "blocked",
+  "reason": "No Java workspace, Apache POI HSSF/XSSF execution, or real xlsx/xlsm/xls parser evidence is available. Synthetic textual fixtures cannot prove fidelity.",
+  "formulaOracle": "formula-collision-v1.json",
+  "matrix": [
+    {"format": "xlsx", "capability": "excel.cell.value.v1", "status": "blocked"},
+    {"format": "xlsm", "capability": "excel.cell.value.v1", "status": "blocked"},
+    {"format": "xls", "capability": "excel.cell.value.v1", "status": "blocked"},
+    {"format": "xlsx", "capability": "excel.cell.formula.stored.v1", "status": "blocked"},
+    {"format": "xlsm", "capability": "excel.cell.formula.stored.v1", "status": "blocked"},
+    {"format": "xls", "capability": "excel.cell.formula.stored.v1", "status": "blocked"},
+    {"format": "xlsx", "capability": "excel.style.number-format.v1", "status": "blocked"},
+    {"format": "xlsm", "capability": "excel.style.number-format.v1", "status": "blocked"},
+    {"format": "xls", "capability": "excel.style.number-format.v1", "status": "blocked"},
+    {"format": "xlsx", "capability": "excel.style.font.v1", "status": "blocked"},
+    {"format": "xlsm", "capability": "excel.style.font.v1", "status": "blocked"},
+    {"format": "xls", "capability": "excel.style.font.v1", "status": "blocked"},
+    {"format": "xlsx", "capability": "excel.style.fill.v1", "status": "blocked"},
+    {"format": "xlsm", "capability": "excel.style.fill.v1", "status": "blocked"},
+    {"format": "xls", "capability": "excel.style.fill.v1", "status": "blocked"},
+    {"format": "xlsx", "capability": "excel.style.border.v1", "status": "blocked"},
+    {"format": "xlsm", "capability": "excel.style.border.v1", "status": "blocked"},
+    {"format": "xls", "capability": "excel.style.border.v1", "status": "blocked"},
+    {"format": "xlsx", "capability": "excel.style.alignment.v1", "status": "blocked"},
+    {"format": "xlsm", "capability": "excel.style.alignment.v1", "status": "blocked"},
+    {"format": "xls", "capability": "excel.style.alignment.v1", "status": "blocked"}
+  ]
+}

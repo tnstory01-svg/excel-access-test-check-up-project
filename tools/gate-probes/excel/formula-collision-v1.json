@@ -1,0 +1,56 @@
+{
+  "fixtureId": "formula-collision-v1",
+  "oracle": "synthetic-text-only",
+  "limitations": [
+    "This fixture is an independent textual oracle contract, not a workbook or parser execution result.",
+    "No Apache POI HSSF/XSSF execution or real xlsx/xlsm/xls parser evidence is present; every Gate 0A capability remains blocked."
+  ],
+  "cases": [
+    {
+      "id": "intersection-positive",
+      "kind": "positive",
+      "formula": "=SUM(B7:D7 C6:C8)",
+      "tokens": ["FUNCTION:SUM", "LPAREN", "REF:B7:D7", "SPACE_INTERSECTION", "REF:C6:C8", "RPAREN"]
+    },
+    {
+      "id": "union-boundary",
+      "kind": "boundary",
+      "formula": "=SUM(B7:D7,C6:C8)",
+      "tokens": ["FUNCTION:SUM", "LPAREN", "REF:B7:D7", "COMMA_UNION", "REF:C6:C8", "RPAREN"]
+    },
+    {
+      "id": "whitespace-removal-negative",
+      "kind": "negative",
+      "formula": "=SUM(B7:D7C6:C8)",
+      "tokens": ["FUNCTION:SUM", "LPAREN", "AMBIGUOUS_REF_RUN:B7:D7C6:C8", "RPAREN"],
+      "expectedDisposition": "unsupported"
+    },
+    {
+      "id": "structured-reference",
+      "kind": "positive",
+      "formula": "=SUM(Table1[North West])",
+      "tokens": ["FUNCTION:SUM", "LPAREN", "STRUCTURED_REF:Table1[North West]", "RPAREN"]
+    },
+    {
+      "id": "quoted-sheet",
+      "kind": "positive",
+      "formula": "='Q1 Data'!A1+'O''Brien'!A1",
+      "tokens": ["QUOTED_SHEET_REF:'Q1 Data'!A1", "PLUS", "QUOTED_SHEET_REF:'O''Brien'!A1"]
+    },
+    {
+      "id": "external-defined-name",
+      "kind": "boundary",
+      "formula": "='[Budget.xlsx]Q1 Data'!A1+Sales_Total",
+      "tokens": ["EXTERNAL_QUOTED_REF:'[Budget.xlsx]Q1 Data'!A1", "PLUS", "DEFINED_NAME:Sales_Total"]
+    },
+    {
+      "id": "literal-embedded-space",
+      "kind": "positive",
+      "formula": "=IF(A1=\"North West\",\"keep this space\",\"\")",
+      "tokens": ["FUNCTION:IF", "LPAREN", "REF:A1", "EQUAL", "STRING:North West", "COMMA_ARGUMENT", "STRING:keep this space", "COMMA_ARGUMENT", "STRING:", "RPAREN"]
+    }
+  ],
+  "collisionSets": [
+    ["intersection-positive", "union-boundary", "whitespace-removal-negative"]
+  ]
+}
