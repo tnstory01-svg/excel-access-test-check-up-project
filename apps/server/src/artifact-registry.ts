@@ -1,8 +1,9 @@
-import { createHash, randomUUID } from 'node:crypto';
-import { constants, createReadStream } from 'node:fs';
-import { chmod, copyFile, lstat, mkdir, realpath, unlink } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
+import { lstat, mkdir, realpath } from 'node:fs/promises';
 import path from 'node:path';
 import type { IntakeMetadata } from './security/intake.ts';
+import { SERVER_LIMITS } from './config.ts';
+import { cleanupPrivateJobWorkspace, materializePrivateJobInput, type PrivateJobWorkspace } from './security/job-workspace.ts';
 
 export type ArtifactHandle = string & { readonly __artifactHandle: unique symbol };
 type StoredArtifact = Readonly<{ metadata: IntakeMetadata; filePath: string }>;
@@ -12,46 +13,55 @@ function contained(root: string, candidate: string): boolean {
   return relative !== '' && !relative.startsWith('..') && !path.isAbsolute(relative);
 }
 
-async function assertSafeDirectory(directory: string): Promise<void> {
-  const resolved = path.resolve(directory);
-  const parsed = path.parse(resolved);
-  let current = parsed.root;
-  for (const segment of resolved.slice(parsed.root.length).split(path.sep).filter(Boolean)) {
-    current = path.join(current, segment);
-    const entry = await lstat(current);
-    if (!entry.isDirectory() || entry.isSymbolicLink()) {
-      throw new Error('Private job path contains a reparse point or non-directory');
-    }
-  }
-  const canonical = await realpath(resolved);
-  if (canonical !== resolved) throw new Error('Private job path is not canonical');
-}
-async function sha256File(filePath: string): Promise<string> {
-  const hash = createHash('sha256');
-  for await (const chunk of createReadStream(filePath)) hash.update(chunk);
-  return hash.digest('hex');
+function immutableMetadata(metadata: IntakeMetadata): IntakeMetadata {
+  return Object.freeze({
+    id: metadata.id,
+    sha256: metadata.sha256,
+    family: metadata.family,
+    detectedFormat: metadata.detectedFormat,
+    size: metadata.size,
+    createdAt: metadata.createdAt,
+  });
 }
 
-
-/** Server-only registry: its filesystem paths never leave this module's boundary. */
+/** Server-only registry: filesystem paths never leave this module's boundary. */
 export class ArtifactRegistry {
   readonly #artifactDirectory: string;
+  readonly #artifactStoreBytes: number;
   readonly #artifacts = new Map<string, StoredArtifact>();
+  #reservedBytes = 0;
 
-  constructor(artifactDirectory: string) {
+  constructor(artifactDirectory: string, artifactStoreBytes = SERVER_LIMITS.artifactStoreBytes) {
+    if (!Number.isSafeInteger(artifactStoreBytes) || artifactStoreBytes < 1) {
+      throw new Error('Invalid artifact storage limit');
+    }
     this.#artifactDirectory = path.resolve(artifactDirectory);
+    this.#artifactStoreBytes = artifactStoreBytes;
   }
 
   register(metadata: IntakeMetadata): ArtifactHandle {
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(metadata.id)) {
       throw new Error('Artifact ID is not an opaque UUID');
     }
+    if (!Number.isSafeInteger(metadata.size) || metadata.size < 1) {
+      throw new Error('Artifact size is invalid');
+    }
     const filePath = path.resolve(this.#artifactDirectory, metadata.id);
     if (!contained(this.#artifactDirectory, filePath) || this.#artifacts.has(metadata.id)) {
       throw new Error('Invalid or duplicate artifact registration');
     }
-    this.#artifacts.set(metadata.id, Object.freeze({ metadata, filePath }));
-    return metadata.id as ArtifactHandle;
+    if (metadata.size > this.#artifactStoreBytes - this.#reservedBytes) {
+      throw new Error('Artifact storage limit exceeded');
+    }
+
+    this.#reservedBytes += metadata.size;
+    try {
+      this.#artifacts.set(metadata.id, Object.freeze({ metadata: immutableMetadata(metadata), filePath }));
+      return metadata.id as ArtifactHandle;
+    } catch (error) {
+      this.#reservedBytes -= metadata.size;
+      throw error;
+    }
   }
 
   metadata(handle: ArtifactHandle): IntakeMetadata {
@@ -63,44 +73,32 @@ export class ArtifactRegistry {
   async materializePrivateInput(handle: ArtifactHandle, tmpRoot: string): Promise<PrivateJobPlan> {
     const artifact = this.#artifacts.get(handle);
     if (!artifact) throw new Error('Unknown artifact handle');
-    await assertSafeDirectory(this.#artifactDirectory);
+    await mkdir(this.#artifactDirectory, { recursive: true, mode: 0o700 });
     const source = await lstat(artifact.filePath);
     if (!source.isFile() || source.isSymbolicLink() || source.size !== artifact.metadata.size) {
       throw new Error('Artifact storage entry is unsafe');
     }
-    const canonicalSource = await realpath(artifact.filePath);
-    const canonicalArtifacts = await realpath(this.#artifactDirectory);
+    const [canonicalArtifacts, canonicalSource] = await Promise.all([
+      realpath(this.#artifactDirectory), realpath(artifact.filePath),
+    ]);
     if (!contained(canonicalArtifacts, canonicalSource)) throw new Error('Artifact storage entry escaped its root');
+    const workspace = await materializePrivateJobInput({
+      artifactPath: canonicalSource,
+      artifactSize: artifact.metadata.size,
+      artifactSha256: artifact.metadata.sha256,
+      tmpRoot,
+    });
+    return Object.freeze({ ...workspace, artifactHandle: handle });
+  }
 
-    const resolvedTmpRoot = path.resolve(tmpRoot);
-    await mkdir(resolvedTmpRoot, { recursive: true, mode: 0o700 });
-    await assertSafeDirectory(resolvedTmpRoot);
-    const jobDirectory = path.join(resolvedTmpRoot, `job-${randomUUID()}`);
-    await mkdir(jobDirectory, { recursive: false, mode: 0o700 });
-    await assertSafeDirectory(jobDirectory);
-    const inputPath = path.join(jobDirectory, 'input.bin');
-    try {
-      await copyFile(canonicalSource, inputPath, constants.COPYFILE_EXCL);
-      await chmod(inputPath, 0o444);
-      const input = await lstat(inputPath);
-      if (!input.isFile() || input.isSymbolicLink() || input.size !== artifact.metadata.size
-        || await sha256File(inputPath) !== artifact.metadata.sha256) {
-        throw new Error('Private input does not match immutable artifact metadata');
-      }
-    } catch (error) {
-      await unlink(inputPath).catch(() => undefined);
-      throw error;
-    }
-    return Object.freeze({ jobDirectory, inputPath, artifactHandle: handle });
+  async cleanupPrivateInput(plan: PrivateJobPlan, tmpRoot: string): Promise<void> {
+    if (!this.#artifacts.has(plan.artifactHandle)) throw new Error('Unknown artifact handle');
+    await cleanupPrivateJobWorkspace(plan, tmpRoot);
   }
 }
 
 /** Server-side execution plan. Do not serialize file paths into worker requests. */
-export type PrivateJobPlan = Readonly<{
-  jobDirectory: string;
-  inputPath: string;
-  artifactHandle: ArtifactHandle;
-}>;
+export type PrivateJobPlan = Readonly<PrivateJobWorkspace & { artifactHandle: ArtifactHandle }>;
 
 /** The sole artifact value allowed in a worker protocol request. */
 export function workerArtifactHandle(plan: PrivateJobPlan): string {

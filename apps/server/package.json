@@ -7,7 +7,8 @@
     "node": "22.14.0"
   },
   "scripts": {
-    "typecheck": "node --experimental-strip-types --check src/config.ts && node --experimental-strip-types --check src/artifact-registry.ts && node --experimental-strip-types --check src/security/intake.ts && node --experimental-strip-types --check src/security/host-origin.ts",
-    "test:unit": "node --experimental-strip-types --test"
+    "typecheck": "node --experimental-strip-types --test src/all-files.test.ts",
+    "test:unit": "node --experimental-strip-types --test",
+    "qa:report": "node --experimental-strip-types src/all-files.test.ts --qa-report"
   }
 }

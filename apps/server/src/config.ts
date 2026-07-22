@@ -12,6 +12,13 @@ export type ServerLimits = Readonly<{
   zipCompressionRatio: number;
   apiJsonBytes: number;
   scratchBytes: number;
+  workerConcurrency: number;
+  workerQueue: number;
+  workerFrameBytes: number;
+  workerTotalBytes: number;
+  workerEvidenceBytes: number;
+  workerStderrBytes: number;
+  workerCancelGraceMs: number;
 }>;
 
 const DEFAULT_LIMITS: ServerLimits = Object.freeze({
@@ -23,11 +30,19 @@ const DEFAULT_LIMITS: ServerLimits = Object.freeze({
   zipCompressionRatio: 100,
   apiJsonBytes: 1024 * 1024,
   scratchBytes: 768 * 1024 * 1024,
+  workerConcurrency: 1,
+  workerQueue: 10,
+  workerFrameBytes: 1024 * 1024,
+  workerTotalBytes: 16 * 1024 * 1024,
+  workerEvidenceBytes: 8 * 1024 * 1024,
+  workerStderrBytes: 256 * 1024,
+  workerCancelGraceMs: 2_000,
 });
 
-function lowerOnlyLimit(name: string, defaultValue: number, value: string | undefined): number {
+function lowerOnlyLimit(name: string, defaultValue: number, value: string | undefined, minimum = 1): number {
   if (value === undefined || value === '') return defaultValue;
-  if (!/^[1-9]\d*$/.test(value)) throw new Error(`${name} must be a positive integer`);
+  const integerPattern = minimum === 0 ? /^(?:0|[1-9]\d*)$/ : /^[1-9]\d*$/;
+  if (!integerPattern.test(value)) throw new Error(`${name} must be a ${minimum === 0 ? 'non-negative' : 'positive'} integer`);
   const parsed = Number(value);
   if (!Number.isSafeInteger(parsed) || parsed > defaultValue) {
     throw new Error(`${name} may only lower its default limit`);
@@ -45,8 +60,17 @@ export function loadServerLimits(env: NodeJS.ProcessEnv = process.env): ServerLi
     zipCompressionRatio: lowerOnlyLimit('EAG_ZIP_COMPRESSION_RATIO', DEFAULT_LIMITS.zipCompressionRatio, env.EAG_ZIP_COMPRESSION_RATIO),
     apiJsonBytes: lowerOnlyLimit('EAG_API_JSON_BYTES', DEFAULT_LIMITS.apiJsonBytes, env.EAG_API_JSON_BYTES),
     scratchBytes: lowerOnlyLimit('EAG_SCRATCH_BYTES', DEFAULT_LIMITS.scratchBytes, env.EAG_SCRATCH_BYTES),
+    workerConcurrency: lowerOnlyLimit('EAG_WORKER_CONCURRENCY', DEFAULT_LIMITS.workerConcurrency, env.EAG_WORKER_CONCURRENCY),
+    workerQueue: lowerOnlyLimit('EAG_WORKER_QUEUE', DEFAULT_LIMITS.workerQueue, env.EAG_WORKER_QUEUE, 0),
+    workerFrameBytes: lowerOnlyLimit('EAG_WORKER_FRAME_BYTES', DEFAULT_LIMITS.workerFrameBytes, env.EAG_WORKER_FRAME_BYTES),
+    workerTotalBytes: lowerOnlyLimit('EAG_WORKER_TOTAL_BYTES', DEFAULT_LIMITS.workerTotalBytes, env.EAG_WORKER_TOTAL_BYTES),
+    workerEvidenceBytes: lowerOnlyLimit('EAG_WORKER_EVIDENCE_BYTES', DEFAULT_LIMITS.workerEvidenceBytes, env.EAG_WORKER_EVIDENCE_BYTES),
+    workerStderrBytes: lowerOnlyLimit('EAG_WORKER_STDERR_BYTES', DEFAULT_LIMITS.workerStderrBytes, env.EAG_WORKER_STDERR_BYTES),
+    workerCancelGraceMs: lowerOnlyLimit('EAG_WORKER_CANCEL_GRACE_MS', DEFAULT_LIMITS.workerCancelGraceMs, env.EAG_WORKER_CANCEL_GRACE_MS),
   });
 }
+/** The sole process-wide resource policy, parsed and frozen during server startup. */
+export const SERVER_LIMITS = loadServerLimits();
 
 export type LocalAppPaths = Readonly<{
   root: string;
