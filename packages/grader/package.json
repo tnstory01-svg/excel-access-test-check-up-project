@@ -1,0 +1,15 @@
+{
+  "name": "@excel-access-grader/grader",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./grade": "./src/grade.ts",
+    "./extract": "./src/extract.ts",
+    "./normalization": "./src/normalization.ts"
+  },
+  "scripts": {
+    "typecheck": "node --experimental-strip-types --input-type=module -e \"await Promise.all(['./src/extract.ts','./src/normalization.ts','./src/grade.ts'].map((path) => import(path)))\"",
+    "test:unit": "node --experimental-strip-types --test src/grade.test.ts"
+  }
+}

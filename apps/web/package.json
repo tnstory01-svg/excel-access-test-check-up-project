@@ -1,0 +1,16 @@
+{
+  "name": "@excel-access-grader/web",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "engines": {
+    "node": "22.14.0"
+  },
+  "scripts": {
+    "typecheck": "node --experimental-strip-types --test src/workflow.test.ts",
+    "test:unit": "node --experimental-strip-types --test src/workflow.test.ts"
+  },
+  "dependencies": {
+    "@excel-access-grader/domain": "workspace:*"
+  }
+}
